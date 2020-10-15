@@ -1,0 +1,126 @@
+<script src="../simpletest.js"></script>
+<script>
+
+// librarySystem Version 2
+
+// Description
+// 1. Creates property on libraryStorage object when sent more than one argument
+// 2. Return property value if called with just libraryName
+
+// Parameters
+// libraryName
+// array
+// callback
+
+// Returns
+// If called with libraryName only, it returns the callback stored at libraryName
+// Else, it returns an error message.
+
+// Notes
+
+// - if libraryName, it should find the library and run its callback
+// - if libraryName, if library not found, it should return an error
+// - if libraryName, array, and callback are given, it should create a new library dependency in libraryStorage
+// - if array, callback, and existing libraryName is given, it should update to the library dependency in libraryStorage (assuming dependencies exist)
+// - if array, callback, and existing libraryName is given, but dependencies do not exist, it should return an error
+// - it should support libraries that depend on each other
+// - it should support libraries that depend on any number of dependencies
+
+var libraryStorage = {};
+
+function librarySystem(libraryName, array, callback) {
+  if (arguments.length > 1) {
+    var newArray = [];
+    for (var i = 0; i < array.length; i++) {
+      if (array[i] in libraryStorage) {
+        newArray.push(libraryStorage[array[i]]);
+      } else {
+        throw new Error(`Dependency ${array[i]} not found!`);
+      }    
+    }
+    libraryStorage[libraryName] = callback.apply(this, newArray);
+  } else {
+    if (libraryName in libraryStorage) {
+      return libraryStorage[libraryName];
+    } else {
+      throw new Error(`Dependency ${libraryName} not found!`);
+    }
+  }
+}
+
+tests({
+  'if libraryName, it should find the library and run its callback': function() {
+    librarySystem('bread', [], function() {
+      return 'Yo where mah bread';
+    })
+    var test = librarySystem('bread');
+    eq(test, 'Yo where mah bread')
+  },
+  'if libraryName, if library not found, it should return an error': function() {
+    try {
+      librarySystem('chicken'); 
+    } catch(e){
+      var test = (e instanceof Error)
+    }
+    eq(test, true);
+  },
+  'if libraryName, array, and callback are given, it should create a new library dependency in libraryStorage': function() {
+    librarySystem('lettuce', [], function() {
+      return 'Yo lettuce enjoy this meal';
+    })
+    var test = 'lettuce' in libraryStorage;
+    eq(test, true)
+  },
+  'if array, callback, and existing libraryName is given, it should update to the library dependency in libraryStorage (assuming dependencies exist)': function() {
+    librarySystem('kefir', [], function() {
+      return 'Yo where mah kefir at';
+    });
+    librarySystem('kefir', [], function() {
+      return 'Nvm here it is';
+    });
+    var test = librarySystem('kefir');
+    eq(test, 'Nvm here it is')
+  },
+  'if array, callback, and existing libraryName is given, but dependencies do not exist, it should return an error': function() {
+    librarySystem('dumplings', [], function() {
+      return 'Yo where mah dumps?';
+    });
+    try {
+      librarySystem('dumplings', ['freezer'], function() {
+        return 'Nvm here it is';
+      });
+    } catch (e) {
+      var test = (e instanceof Error);
+    }
+    eq(test, true)
+  },
+  'it should support libraries that depend on each other': function() {
+    librarySystem('eggs', [], function() {
+      return 'loaded eggs';
+    });
+
+    librarySystem('spam', ['eggs'], function(dependency) {
+      return 'spam with ' + dependency;
+    });
+
+    var test = librarySystem('spam');
+    eq(test, 'spam with loaded eggs');
+  },
+  'it should support libraries that depend on any number of dependencies': function() {
+    librarySystem('lentils', [], function() {
+      return 'lentils are the best';
+    });
+
+    librarySystem('peas', [], function() {
+      return 'peas are pretty good';
+    });
+
+    librarySystem('legumes', ['lentils', 'peas'], function(lentils, peas) {
+      return lentils + ' no wait I mean ' + peas;
+    });
+
+    var test = librarySystem('legumes');
+    eq(test, 'lentils are the best no wait I mean peas are pretty good')
+  }
+});
+</script>
