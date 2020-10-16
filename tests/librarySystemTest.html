@@ -25,23 +25,43 @@
 // - if array, callback, and existing libraryName is given, but dependencies do not exist, it should return an error
 // - it should support libraries that depend on each other
 // - it should support libraries that depend on any number of dependencies
+// - it should support any number of dependencies that can be declared out of order
+// - it should only ever call the callback once
+
 
 var libraryStorage = {};
+var libraryCache = {};
+
+function LibrarySystem(name, array, callback) {
+  this.name = name;
+  this.array = array;
+  this.callback = callback;
+}
 
 function librarySystem(libraryName, array, callback) {
+  // if I have more than 1 arg, I'm creating a new library
   if (arguments.length > 1) {
-    var newArray = [];
-    for (var i = 0; i < array.length; i++) {
-      if (array[i] in libraryStorage) {
-        newArray.push(libraryStorage[array[i]]);
-      } else {
-        throw new Error(`Dependency ${array[i]} not found!`);
-      }    
-    }
-    libraryStorage[libraryName] = callback.apply(this, newArray);
+    var newLibrary = Object.create(LibrarySystem);
+    newLibrary.name = libraryName;
+    newLibrary.array = array;
+    newLibrary.callback = callback;
+    libraryStorage[libraryName] = newLibrary;
   } else {
-    if (libraryName in libraryStorage) {
-      return libraryStorage[libraryName];
+    if (libraryName in libraryCache) {
+      return libraryCache[libraryName];
+    }
+    else if (libraryName in libraryStorage) {
+      var newArray = [];
+      for (var i = 0; i < libraryStorage[libraryName].array.length; i++) {
+        var objName = libraryStorage[libraryName].array[i];
+        if (objName in libraryStorage) {
+          newArray.push(libraryStorage[objName].callback());
+        } else {
+          throw new Error(`Dependency ${objName} not found!`);
+        }    
+      }
+      libraryCache[libraryName] = libraryStorage[libraryName].callback.apply(this, newArray);
+      return libraryCache[libraryName];
     } else {
       throw new Error(`Dependency ${libraryName} not found!`);
     }
@@ -82,19 +102,19 @@ tests({
     eq(test, 'Nvm here it is')
   },
   'if array, callback, and existing libraryName is given, but dependencies do not exist, it should return an error': function() {
-    librarySystem('dumplings', [], function() {
+    libraryStorage = {};
+    librarySystem('dumplings', ['freezer'], function() {
       return 'Yo where mah dumps?';
     });
     try {
-      librarySystem('dumplings', ['freezer'], function() {
-        return 'Nvm here it is';
-      });
+      librarySystem('dumplings');
     } catch (e) {
       var test = (e instanceof Error);
     }
     eq(test, true)
   },
   'it should support libraries that depend on each other': function() {
+    libraryStorage = {}; // clears library storage 
     librarySystem('eggs', [], function() {
       return 'loaded eggs';
     });
@@ -107,6 +127,7 @@ tests({
     eq(test, 'spam with loaded eggs');
   },
   'it should support libraries that depend on any number of dependencies': function() {
+    libraryStorage = {}; // clears library storage 
     librarySystem('lentils', [], function() {
       return 'lentils are the best';
     });
@@ -121,6 +142,33 @@ tests({
 
     var test = librarySystem('legumes');
     eq(test, 'lentils are the best no wait I mean peas are pretty good')
+  },
+  'it should support any number of dependencies that can be declared out of order': function() {
+    libraryStorage = {}; // clears library storage 
+    librarySystem('mmm', ['delicious', 'crunchy'], function(delicious, crunchy) {
+      return delicious + ' is better than ' + crunchy;
+    });
+    librarySystem('crunchy', [], function() {
+      return 'crunch';
+    });
+
+    librarySystem('delicious', [], function() {
+      return 'deliciousness';
+    });
+    var test = librarySystem('mmm');
+    eq(test, 'deliciousness is better than crunch');
+  },
+  'it should only ever call the callback once': function() {
+    libraryStorage = {}; // clears library storage 
+    var testCount = 0;
+    librarySystem('yahoo', [], function(delicious, crunchy) {
+      testCount++;
+      return 'do you yahoo';
+    });
+    for (var i = 0; i < 100; i++) {
+      librarySystem('yahoo');
+    }
+    eq(testCount, 1);
   }
 });
 </script>
