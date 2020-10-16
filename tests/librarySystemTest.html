@@ -42,7 +42,6 @@ function librarySystem(libraryName, array, callback) {
   // if I have more than 1 arg, I'm creating a new library
   if (arguments.length > 1) {
     var newLibrary = Object.create(LibrarySystem);
-    newLibrary.name = libraryName;
     newLibrary.array = array;
     newLibrary.callback = callback;
     libraryStorage[libraryName] = newLibrary;
